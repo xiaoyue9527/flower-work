@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小微书</title>
+    <meta name="description" content="小微书，你的第一个go应用" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue-router@4"></script>
+    <style>
+      * {
+        padding: 0;
+        margin: 0;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      input {
+        min-width: 300px;
+        display: inline-block;
+      }
+      .text-center {
+        text-align: center;
+      }
+      .text-center + .text-center {
+        margin-top: 10px;
+      }
+      .top-nav {
+        width: 100vw;
+        display: flex;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+      }
+      .top-nav-item {
+        flex: 0 0 80px;
+      }
+      .user-signup,
+      .user-login {
+        width: 475px;
+        margin: 0 auto;
+        align-text: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <nav class="top-nav">
+        <router-link class="top-nav-item" to="/">主页</router-link>
+        <router-link class="top-nav-item" to="/users/signup">注册</router-link>
+        <router-link class="top-nav-item" to="/users/login">登录</router-link>
+        <router-link class="top-nav-item" to="/users/profile">个人信息</router-link>
+      </nav>
+      <router-view></router-view>
+    </div>
+
+    <script>
+      // 浏览器缓存操作
+      const StorageUtils = {
+        // 存储数据到localStorage
+        setLocalStorage: function (key, value) {
+          localStorage.setItem(key, JSON.stringify(value))
+        },
+
+        // 从localStorage获取数据
+        getLocalStorage: function (key) {
+          const value = localStorage.getItem(key)
+          return value ? JSON.parse(value) : null
+        },
+
+        // 从localStorage移除数据
+        removeLocalStorage: function (key) {
+          localStorage.removeItem(key)
+        },
+
+        // 存储数据到sessionStorage
+        setSessionStorage: function (key, value) {
+          sessionStorage.setItem(key, JSON.stringify(value))
+        },
+
+        // 从sessionStorage获取数据
+        getSessionStorage: function (key) {
+          const value = sessionStorage.getItem(key)
+          return value ? JSON.parse(value) : null
+        },
+
+        // 从sessionStorage移除数据
+        removeSessionStorage: function (key) {
+          sessionStorage.removeItem(key)
+        },
+      }
+      const Auth = {
+        getToken: function () {
+          return StorageUtils.getToken('token')
+        },
+        setToken: function (token) {
+          StorageUtils.setToken('token', token)
+        },
+      }
+      // 请求拦截器
+      const api = axios.create({
+        baseURL: '',
+        withCredentials: true,
+        timeout: 5000,
+      })
+      // 请求拦截
+      api.interceptors.request.use(
+        (config) => {
+          if(getToken()){
+            config.headers['x-jwt-token'] = getToken()
+          }
+          return config
+        },
+        (error) => {
+          return Promise.reject(error)
+        }
+      )
+      // 响应拦截
+      api.interceptors.response.use(
+        (response) => {
+          const res = response
+          if (response.statusCode !== 200) {
+            return Promise.reject(new Error(res.error || 'Error'))
+          }
+          // token保存
+          if (response.headers['x-jwt-token']){
+            setToken(response.headers['x-jwt-token'])
+          }
+          if (res.error) {
+            return Promise.reject(new Error(res.error || 'Error'))
+          } else {
+            return res
+          }
+        },
+        (error) => {
+          console.log('err' + error.error || '服务器错误Error') // for debug
+          return Promise.reject(error)
+        }
+      )
+      // 请求封装
+      // 用户注册接口
+      const userSignup = (data) => {
+        return api({
+          url: '/users/signup',
+          method: 'POST',
+          data,
+        })
+      }
+
+      // 用户登录接口
+      const userLogin = (data) => {
+        return api({
+          url: '/users/login',
+          method: 'POST',
+          data,
+        })
+      }
+
+      // 用户编辑个人信息接口
+      const editUserProfile = (data) => {
+        return api({
+          url: '/users/edit',
+          method: 'POST',
+          data,
+        })
+      }
+
+      // 查看个人详情接口
+      const getUserProfile = () => {
+        return api({
+          url: '/users/profile',
+          method: 'GET',
+        })
+      }
+
+      // JWT登录和用户详情接口
+      const userJWTLogin = (data) => {
+        return api({
+          url: '/users/login',
+          method: 'POST',
+          data,
+        })
+      }
+
+      // JWT获取用户详情
+      const getUserProfileJWT = () => {
+        return api({
+          url: '/users/profile',
+          method: 'GET',
+        })
+      }
+      // 主页
+      const Home = {
+        template: '<div class="text-center"><h1>hello wode</h1></div>',
+        mounted() {
+          document.title = '小微书-主页'
+          document.querySelector('meta[name="description"]').content =
+            '小微书主页'
+        },
+      }
+      // 注册页
+      const UserSignupPage = {
+        template: `
+          <div class="user-signup">
+            <form @submit="handleSignup">
+              <div class="text-center">
+                <input v-model="email" type="text" placeholder="请输入邮箱">
+              </div>
+              <div class="text-center">
+                <input v-model="password" type="password" placeholder="请输入密码">
+              </div>
+              <div class="text-center">
+               <input v-model="confirmPassword" type="password" placeholder="请输入确认密码">
+              </div>
+              <div class="text-center">
+                <button type="submit">注册</button>
+              </div>
+            </form>
+          </div>
+        `,
+        data() {
+          return {
+            email: '',
+            password: '',
+            confirmPassword: '',
+          }
+        },
+        mounted() {
+          document.title = '小微书-注册'
+          document.querySelector('meta[name="description"]').content =
+            '这是小微书注册页面'
+        },
+        methods: {
+          handleSignup(event) {
+            event.preventDefault()
+            if (!this.validateEmail(this.email)) {
+              alert('邮箱不符合规则')
+              return
+            }
+
+            if (!this.validatePassword(this.password)) {
+              alert('密码不符合规则')
+              return
+            }
+
+            if (this.password !== this.confirmPassword) {
+              alert('两次密码不一致')
+              return
+            }
+            userSignup({
+              email: this.email,
+              password: this.password,
+              confirmPassword: this.confirmPassword,
+            })
+              .then((response) => {
+                alert(response.message)
+              })
+              .catch((error) => {
+                console.log(error)
+                alert(error?.error || '请求错误')
+              })
+          },
+          // 邮箱验证
+          validateEmail(email) {
+            const regex = new RegExp(
+              '^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$'
+            )
+            return regex.test(email)
+          },
+          // 密码合规验证
+          validatePassword(password) {
+            const regex = new RegExp(
+              `^(?=.*[A-Za-z])(?=.*\\d)(?=.*[$@$!%*#?&])[A-Za-z\\d$@$!%*#?&]{8,}$`
+            )
+            return regex.test(password)
+          },
+        },
+      }
+      // 登录页
+      const UserLoginPage = {
+        template: `
+          <div class="user-login">
+            <form @submit="handleLogin">
+              <div class="text-center">
+                <input v-model="email" type="text" placeholder="请输入邮箱">
+              </div>
+              <div class="text-center">
+                <input v-model="password" type="password" placeholder="请输入密码">
+              </div>
+              <div class="text-center">
+                <button type="submit">登录</button>
+              </div>
+            </form>
+          </div>
+        `,
+        data() {
+          return {
+            email: '',
+            password: '',
+          }
+        },
+        mounted() {
+          document.title = '小微书-登录'
+          document.querySelector('meta[name="description"]').content =
+            '这是小微书登录页面'
+        },
+        methods: {
+          handleLogin(event) {
+            event.preventDefault()
+            if (!this.validateEmail(this.email)) {
+              alert('邮箱不符合规则')
+              return
+            }
+
+            if (!this.validatePassword(this.password)) {
+              alert('密码不符合规则')
+              return
+            }
+            userLogin({
+              email: this.email,
+              password: this.password,
+            })
+              .then((response) => {
+                alert(response.message)
+              })
+              .catch((error) => {
+                console.log(error)
+                alert(error?.error || '请求错误')
+              })
+          },
+          // 邮箱验证
+          validateEmail(email) {
+            const regex = new RegExp(
+              '^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$'
+            )
+            return regex.test(email)
+          },
+          // 密码合规验证
+          validatePassword(password) {
+            const regex = new RegExp(
+              `^(?=.*[A-Za-z])(?=.*\\d)(?=.*[$@$!%*#?&])[A-Za-z\\d$@$!%*#?&]{8,}$`
+            )
+            return regex.test(password)
+          },
+        },
+      }
+      // 用户编辑个人信息
+      const UserEditPage = {
+        template: `
+          <div class="user-signup">
+            <form @submit="handleSignup">
+              <div class="text-center">
+                <input v-model="password" type="password" placeholder="请输入密码">
+              </div>
+              <div class="text-center">
+               <input v-model="confirmPassword" type="password" placeholder="请输入确认密码">
+              </div>
+              <div class="text-center">
+                <button type="submit">注册</button>
+              </div>
+            </form>
+          </div>
+        `,
+        data() {
+          return {
+            email: '',
+            password: '',
+            confirmPassword: '',
+          }
+        },
+        mounted() {
+          document.title = '小微书-编辑个人信息'
+          document.querySelector('meta[name="description"]').content =
+            '这是小微书编辑个人信息页面'
+        },
+        methods: {
+          handleSignup(event) {
+            event.preventDefault()
+            if (!this.validatePassword(this.password)) {
+              alert('密码不符合规则')
+              return
+            }
+            if (this.password !== this.confirmPassword) {
+              alert('两次密码不一致')
+              return
+            }
+            editUserProfile({
+              password: this.password,
+              confirmPassword: this.confirmPassword,
+            })
+              .then((response) => {
+                alert(response.message)
+              })
+              .catch((error) => {
+                console.log(error)
+                alert(error?.error || '请求错误')
+              })
+          },
+          // 邮箱验证
+          validateEmail(email) {
+            const regex = new RegExp(
+              '^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$'
+            )
+            return regex.test(email)
+          },
+          // 密码合规验证
+          validatePassword(password) {
+            const regex = new RegExp(
+              `^(?=.*[A-Za-z])(?=.*\\d)(?=.*[$@$!%*#?&])[A-Za-z\\d$@$!%*#?&]{8,}$`
+            )
+            return regex.test(password)
+          },
+        },
+      }
+
+      // 路由表
+      const routes = [
+        { path: '/', component: Home },
+        { path: '/users/signup', component: UserSignupPage },
+        { path: '/users/login', component: UserLoginPage },
+        { path: '/users/profile', component: UserEditPage },
+      ]
+      // 生成路由
+      const router = VueRouter.createRouter({
+        history: VueRouter.createWebHashHistory(),
+        routes,
+      })
+      // 启动
+      const app = Vue.createApp({})
+      app.use(router)
+      app.mount('#app')
+    </script>
+  </body>
+</html>
