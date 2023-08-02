@@ -52,7 +52,9 @@
         <router-link class="top-nav-item" to="/">主页</router-link>
         <router-link class="top-nav-item" to="/users/signup">注册</router-link>
         <router-link class="top-nav-item" to="/users/login">登录</router-link>
-        <router-link class="top-nav-item" to="/users/profile">个人信息</router-link>
+        <router-link class="top-nav-item" to="/users/profile"
+          >个人信息</router-link
+        >
       </nav>
       <router-view></router-view>
     </div>
@@ -94,10 +96,10 @@
       }
       const Auth = {
         getToken: function () {
-          return StorageUtils.getToken('token')
+          return StorageUtils.getLocalStorage('token')
         },
         setToken: function (token) {
-          StorageUtils.setToken('token', token)
+          StorageUtils.setLocalStorage('token', token)
         },
       }
       // 请求拦截器
@@ -109,8 +111,9 @@
       // 请求拦截
       api.interceptors.request.use(
         (config) => {
-          if(getToken()){
-            config.headers['x-jwt-token'] = getToken()
+          // 使用token
+          if (Auth.getToken()) {
+            config.headers['x-jwt-token'] = Auth.getToken()
           }
           return config
         },
@@ -126,8 +129,8 @@
             return Promise.reject(new Error(res.error || 'Error'))
           }
           // token保存
-          if (response.headers['x-jwt-token']){
-            setToken(response.headers['x-jwt-token'])
+          if (response.headers['x-jwt-token']) {
+            Auth.setToken(response.headers['x-jwt-token'])
           }
           if (res.error) {
             return Promise.reject(new Error(res.error || 'Error'))
@@ -194,11 +197,24 @@
       }
       // 主页
       const Home = {
-        template: '<div class="text-center"><h1>hello wode</h1></div>',
+        template: `
+        <div class="text-center">
+          <h1>hello wode</h1>
+          <p>你好，{{email}}</p>
+        </div>
+        `,
+        data() {
+          return {
+            email: '未登录用户',
+          }
+        },
         mounted() {
           document.title = '小微书-主页'
           document.querySelector('meta[name="description"]').content =
             '小微书主页'
+          getUserProfile().then((res) => {
+            this.email = res.email
+          })
         },
       }
       // 注册页
